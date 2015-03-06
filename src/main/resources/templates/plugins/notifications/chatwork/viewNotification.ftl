@@ -1,0 +1,1 @@
+${chatWorkRoom!} <span class="notificationRecipientType">([@ww.text name="chatwork.room.view"/])</span>
