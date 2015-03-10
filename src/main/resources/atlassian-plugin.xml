@@ -20,11 +20,10 @@
 
         <context>bamboo-chatwork-plugin</context>
     </web-resource>
-    
+
     <notificationRecipient key="recipient.chatwork" name="Chatwork Recipient" class="jp.tokyo.open.bamboo.plugin.chatwork.ChatworkNotificationRecipient" weight="10">
         <description>ChatWork</description>
         <resource type="freemarker" name="edit" location="templates/plugins/notifications/chatwork/editNotification.ftl"/>
         <resource type="freemarker" name="view" location="templates/plugins/notifications/chatwork/viewNotification.ftl"/>
     </notificationRecipient>
-
 </atlassian-plugin>

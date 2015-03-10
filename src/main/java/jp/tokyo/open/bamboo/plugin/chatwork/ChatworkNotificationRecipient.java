@@ -133,7 +133,7 @@ public class ChatworkNotificationRecipient extends AbstractNotificationRecipient
         log.debug("[ChatWork:getTransports] room: "+this.room);
         log.debug("[ChatWork:getTransports] notify: "+this.notify);
         List<NotificationTransport> list = Lists.newArrayList();
-        list.add(new ChatworkNotificationTransport(apiToken, room, notify, plan, resultsSummary, deploymentResult, event, customVariableContext));
+        list.add(new ChatworkNotificationTransport(apiToken, room, notify, plan, resultsSummary, deploymentResult, event, customVariableContext, templateRenderer));
         return list;
     }
 

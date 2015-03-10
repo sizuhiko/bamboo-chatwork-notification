@@ -6,10 +6,13 @@ import com.atlassian.bamboo.deployments.results.DeploymentResult;
 import com.atlassian.bamboo.notification.Notification;
 import com.atlassian.bamboo.notification.NotificationTransport;
 import com.atlassian.bamboo.plan.cache.ImmutablePlan;
+import com.atlassian.bamboo.plugin.descriptor.NotificationRecipientModuleDescriptor;
 import com.atlassian.bamboo.resultsummary.ResultsSummary;
+import com.atlassian.bamboo.template.TemplateRenderer;
 import com.atlassian.bamboo.utils.HttpUtils;
 import com.atlassian.bamboo.variable.CustomVariableContext;
 import com.atlassian.event.Event;
+import com.google.common.collect.Maps;
 
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.URIException;
@@ -22,6 +25,8 @@ import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ChatworkNotificationTransport implements NotificationTransport
 {
@@ -48,6 +53,7 @@ public class ChatworkNotificationTransport implements NotificationTransport
     @Nullable
     private final DeploymentResult deploymentResult;
     private final Event event;
+    private TemplateRenderer templateRenderer;
 
     public ChatworkNotificationTransport(String apiToken,
             String room,
@@ -56,7 +62,8 @@ public class ChatworkNotificationTransport implements NotificationTransport
             @Nullable ResultsSummary resultsSummary,
             @Nullable DeploymentResult deploymentResult,
             Event event,
-            CustomVariableContext customVariableContext)
+            CustomVariableContext customVariableContext,
+            TemplateRenderer templateRenderer)
     {
         this.apiToken = customVariableContext.substituteString(apiToken);
         this.room = customVariableContext.substituteString(room);
@@ -65,6 +72,7 @@ public class ChatworkNotificationTransport implements NotificationTransport
         this.plan = plan;
         this.resultsSummary = resultsSummary;
         this.deploymentResult = deploymentResult;
+        this.templateRenderer = templateRenderer;
         client = new HttpClient();
 
         try
@@ -87,29 +95,13 @@ public class ChatworkNotificationTransport implements NotificationTransport
     @Override
     public void sendNotification(Notification notification)
     {
-
-        String message = (notification instanceof Notification.HtmlImContentProvidingNotification)
-                ? ((Notification.HtmlImContentProvidingNotification) notification).getHtmlImContent()
-                : notification.getIMContent();
+        String message = getChatworkContent();
 
         if (!StringUtils.isEmpty(message))
         {
-        	log.debug("[ChatworkNotificationTransport] sendNotification");
+            log.debug("[ChatworkNotificationTransport] sendNotification");
             PostMethod method = setupPostMethod();
             method.setParameter("body", message);
-            if (resultsSummary != null)
-            {
-                setMessageColor(method, resultsSummary);
-            }
-            else if (deploymentResult != null)
-            {
-                setMessageColor(method, deploymentResult);
-            }
-            else
-            {
-                setMessageColor(method, COLOR_UNKNOWN_STATE); //todo: might need to use different color in some cases
-            }
-
             try
             {
                 int status = client.executeMethod(method);
@@ -123,51 +115,6 @@ public class ChatworkNotificationTransport implements NotificationTransport
         else {
         	log.debug("[ChatworkNotificationTransport] sendNotification is ** NO MESSAGE **");
         }
-    }
-
-    private void setMessageColor(PostMethod method, ResultsSummary result)
-    {
-        String color = COLOR_UNKNOWN_STATE;
-
-        if (result.getBuildState() == BuildState.FAILED)
-        {
-            color = COLOR_FAILED;
-        }
-        else if (result.getBuildState() == BuildState.SUCCESS)
-        {
-            color = COLOR_SUCCESSFUL;
-        }
-        else if (LifeCycleState.isActive(result.getLifeCycleState()))
-        {
-            color = COLOR_IN_PROGRESS;
-        }
-
-        setMessageColor(method, color);
-    }
-
-    private void setMessageColor(PostMethod method, DeploymentResult deploymentResult)
-    {
-        String color = COLOR_UNKNOWN_STATE;
-
-        if (deploymentResult.getDeploymentState() == BuildState.FAILED)
-        {
-            color = COLOR_FAILED;
-        }
-        else if (deploymentResult.getDeploymentState() == BuildState.SUCCESS)
-        {
-            color = COLOR_SUCCESSFUL;
-        }
-        else if (LifeCycleState.isActive(deploymentResult.getLifeCycleState()))
-        {
-            color = COLOR_IN_PROGRESS;
-        }
-
-        setMessageColor(method, color);
-    }
-
-    private void setMessageColor(PostMethod method, String colour)
-    {
-//        method.addParameter("color", colour);
     }
 
     private PostMethod setupPostMethod()
@@ -187,9 +134,24 @@ public class ChatworkNotificationTransport implements NotificationTransport
     }
 
     /**
-	 * @return
-	 */
-	static String getChatworkApiURL(String room) {
-		return CHATWORK_API_URL.replaceAll("\\{room_id\\}", room);
-	}
+     * @return
+     */
+    static String getChatworkApiURL(String room) {
+        return CHATWORK_API_URL.replaceAll("\\{room_id\\}", room);
+    }
+
+
+    private String getChatworkContent() {
+        String templateLocation = "templates/plugins/notifications/chatwork/BuildCompleted.ftl";
+        return templateRenderer.render(templateLocation, populateContext());
+    }
+
+    private Map<String, Object> populateContext()
+    {
+        Map<String, Object> context = Maps.newHashMap();
+        context.put("build", plan);
+        context.put("buildSummary", resultsSummary);
+        return context;
+    }
+
 }
